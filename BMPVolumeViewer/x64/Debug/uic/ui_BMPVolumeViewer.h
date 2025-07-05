@@ -38,7 +38,23 @@ public:
     QLabel *label_2;
     QLineEdit *filePatternEdit;
     QPushButton *loadButton;
-    QVTKOpenGLNativeWidget *vtkWidget;
+    QHBoxLayout *horizontalLayout_2;
+    QGroupBox *volumeGroupBox;
+    QVBoxLayout *verticalLayout_2;
+    QVTKOpenGLNativeWidget *volumeWidget;
+    QVBoxLayout *verticalLayout_3;
+    QGroupBox *xSliceGroupBox;
+    QVBoxLayout *verticalLayout_4;
+    QVTKOpenGLNativeWidget *xSliceWidget;
+    QHBoxLayout *horizontalLayout_3;
+    QLabel *xSliceLabel;
+    QSlider *xSliceSlider;
+    QGroupBox *ySliceGroupBox;
+    QVBoxLayout *verticalLayout_5;
+    QVTKOpenGLNativeWidget *ySliceWidget;
+    QHBoxLayout *horizontalLayout_4;
+    QLabel *ySliceLabel;
+    QSlider *ySliceSlider;
     QGroupBox *controlGroupBox;
     QHBoxLayout *horizontalLayout;
     QLabel *opacityLabel;
@@ -51,7 +67,7 @@ public:
     {
         if (BMPVolumeViewer->objectName().isEmpty())
             BMPVolumeViewer->setObjectName(QString::fromUtf8("BMPVolumeViewer"));
-        BMPVolumeViewer->resize(1000, 800);
+        BMPVolumeViewer->resize(1200, 1200);
         centralWidget = new QWidget(BMPVolumeViewer);
         centralWidget->setObjectName(QString::fromUtf8("centralWidget"));
         verticalLayout = new QVBoxLayout(centralWidget);
@@ -93,10 +109,105 @@ public:
 
         verticalLayout->addWidget(groupBox);
 
-        vtkWidget = new QVTKOpenGLNativeWidget(centralWidget);
-        vtkWidget->setObjectName(QString::fromUtf8("vtkWidget"));
+        horizontalLayout_2 = new QHBoxLayout();
+        horizontalLayout_2->setObjectName(QString::fromUtf8("horizontalLayout_2"));
+        volumeGroupBox = new QGroupBox(centralWidget);
+        volumeGroupBox->setObjectName(QString::fromUtf8("volumeGroupBox"));
+        verticalLayout_2 = new QVBoxLayout(volumeGroupBox);
+        verticalLayout_2->setObjectName(QString::fromUtf8("verticalLayout_2"));
+        volumeWidget = new QVTKOpenGLNativeWidget(volumeGroupBox);
+        volumeWidget->setObjectName(QString::fromUtf8("volumeWidget"));
+        QSizePolicy sizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+        sizePolicy.setHorizontalStretch(0);
+        sizePolicy.setVerticalStretch(0);
+        sizePolicy.setHeightForWidth(volumeWidget->sizePolicy().hasHeightForWidth());
+        volumeWidget->setSizePolicy(sizePolicy);
+        volumeWidget->setMinimumSize(QSize(600, 600));
 
-        verticalLayout->addWidget(vtkWidget);
+        verticalLayout_2->addWidget(volumeWidget);
+
+
+        horizontalLayout_2->addWidget(volumeGroupBox);
+
+        verticalLayout_3 = new QVBoxLayout();
+        verticalLayout_3->setObjectName(QString::fromUtf8("verticalLayout_3"));
+        xSliceGroupBox = new QGroupBox(centralWidget);
+        xSliceGroupBox->setObjectName(QString::fromUtf8("xSliceGroupBox"));
+        verticalLayout_4 = new QVBoxLayout(xSliceGroupBox);
+        verticalLayout_4->setObjectName(QString::fromUtf8("verticalLayout_4"));
+        xSliceWidget = new QVTKOpenGLNativeWidget(xSliceGroupBox);
+        xSliceWidget->setObjectName(QString::fromUtf8("xSliceWidget"));
+        xSliceWidget->setMinimumSize(QSize(300, 300));
+        sizePolicy.setHeightForWidth(xSliceWidget->sizePolicy().hasHeightForWidth());
+        xSliceWidget->setSizePolicy(sizePolicy);
+
+        verticalLayout_4->addWidget(xSliceWidget);
+
+        horizontalLayout_3 = new QHBoxLayout();
+        horizontalLayout_3->setObjectName(QString::fromUtf8("horizontalLayout_3"));
+        xSliceLabel = new QLabel(xSliceGroupBox);
+        xSliceLabel->setObjectName(QString::fromUtf8("xSliceLabel"));
+
+        horizontalLayout_3->addWidget(xSliceLabel);
+
+        xSliceSlider = new QSlider(xSliceGroupBox);
+        xSliceSlider->setObjectName(QString::fromUtf8("xSliceSlider"));
+        xSliceSlider->setOrientation(Qt::Horizontal);
+        xSliceSlider->setMinimum(0);
+        xSliceSlider->setMaximum(100);
+        xSliceSlider->setValue(50);
+
+        horizontalLayout_3->addWidget(xSliceSlider);
+
+
+        verticalLayout_4->addLayout(horizontalLayout_3);
+
+
+        verticalLayout_3->addWidget(xSliceGroupBox);
+
+        ySliceGroupBox = new QGroupBox(centralWidget);
+        ySliceGroupBox->setObjectName(QString::fromUtf8("ySliceGroupBox"));
+        verticalLayout_5 = new QVBoxLayout(ySliceGroupBox);
+        verticalLayout_5->setObjectName(QString::fromUtf8("verticalLayout_5"));
+        ySliceWidget = new QVTKOpenGLNativeWidget(ySliceGroupBox);
+        ySliceWidget->setObjectName(QString::fromUtf8("ySliceWidget"));
+        ySliceWidget->setMinimumSize(QSize(300, 300));
+        sizePolicy.setHeightForWidth(ySliceWidget->sizePolicy().hasHeightForWidth());
+        ySliceWidget->setSizePolicy(sizePolicy);
+
+        verticalLayout_5->addWidget(ySliceWidget);
+
+        horizontalLayout_4 = new QHBoxLayout();
+        horizontalLayout_4->setObjectName(QString::fromUtf8("horizontalLayout_4"));
+        ySliceLabel = new QLabel(ySliceGroupBox);
+        ySliceLabel->setObjectName(QString::fromUtf8("ySliceLabel"));
+
+        horizontalLayout_4->addWidget(ySliceLabel);
+
+        ySliceSlider = new QSlider(ySliceGroupBox);
+        ySliceSlider->setObjectName(QString::fromUtf8("ySliceSlider"));
+        ySliceSlider->setOrientation(Qt::Horizontal);
+        ySliceSlider->setMinimum(0);
+        ySliceSlider->setMaximum(100);
+        ySliceSlider->setValue(50);
+
+        horizontalLayout_4->addWidget(ySliceSlider);
+
+
+        verticalLayout_5->addLayout(horizontalLayout_4);
+
+
+        verticalLayout_3->addWidget(ySliceGroupBox);
+
+        verticalLayout_3->setStretch(0, 1);
+        verticalLayout_3->setStretch(1, 1);
+
+        horizontalLayout_2->addLayout(verticalLayout_3);
+
+        horizontalLayout_2->setStretch(0, 6);
+        horizontalLayout_2->setStretch(1, 4);
+
+        verticalLayout->addLayout(horizontalLayout_2);
 
         controlGroupBox = new QGroupBox(centralWidget);
         controlGroupBox->setObjectName(QString::fromUtf8("controlGroupBox"));
@@ -147,13 +258,18 @@ public:
 
     void retranslateUi(QMainWindow *BMPVolumeViewer)
     {
-        BMPVolumeViewer->setWindowTitle(QApplication::translate("BMPVolumeViewer", "VTK BMP\345\272\217\345\210\227\344\270\211\347\273\264\344\275\223\346\270\262\346\237\223", nullptr));
+        BMPVolumeViewer->setWindowTitle(QApplication::translate("BMPVolumeViewer", "VTK BMP\345\272\217\345\210\227\344\270\211\347\273\264\344\275\223\346\270\262\346\237\223\344\270\216\345\210\207\347\211\207\346\237\245\347\234\213", nullptr));
         groupBox->setTitle(QApplication::translate("BMPVolumeViewer", "\346\226\207\344\273\266\350\256\276\347\275\256", nullptr));
         label->setText(QApplication::translate("BMPVolumeViewer", "\346\226\207\344\273\266\345\211\215\347\274\200:", nullptr));
         browseButton->setText(QApplication::translate("BMPVolumeViewer", "\346\265\217\350\247\210...", nullptr));
         label_2->setText(QApplication::translate("BMPVolumeViewer", "\346\226\207\344\273\266\345\220\215\346\240\274\345\274\217:", nullptr));
         filePatternEdit->setText(QApplication::translate("BMPVolumeViewer", "%s%d.00um.bmp", nullptr));
         loadButton->setText(QApplication::translate("BMPVolumeViewer", "\345\212\240\350\275\275\345\233\276\345\203\217\345\272\217\345\210\227", nullptr));
+        volumeGroupBox->setTitle(QApplication::translate("BMPVolumeViewer", "\344\270\211\347\273\264\344\275\223\346\270\262\346\237\223", nullptr));
+        xSliceGroupBox->setTitle(QApplication::translate("BMPVolumeViewer", "X\346\226\271\345\220\221\345\210\207\347\211\207 (\345\271\263\350\241\214\344\272\216Z\350\275\264)", nullptr));
+        xSliceLabel->setText(QApplication::translate("BMPVolumeViewer", "X\345\210\207\347\211\207\344\275\215\347\275\256: 0", nullptr));
+        ySliceGroupBox->setTitle(QApplication::translate("BMPVolumeViewer", "Y\346\226\271\345\220\221\345\210\207\347\211\207 (\345\271\263\350\241\214\344\272\216Z\350\275\264)", nullptr));
+        ySliceLabel->setText(QApplication::translate("BMPVolumeViewer", "Y\345\210\207\347\211\207\344\275\215\347\275\256: 0", nullptr));
         controlGroupBox->setTitle(QApplication::translate("BMPVolumeViewer", "\346\270\262\346\237\223\346\216\247\345\210\266", nullptr));
         opacityLabel->setText(QApplication::translate("BMPVolumeViewer", "\344\270\215\351\200\217\346\230\216\345\272\246:", nullptr));
         colorLabel->setText(QApplication::translate("BMPVolumeViewer", "\351\242\234\350\211\262\346\230\240\345\260\204:", nullptr));

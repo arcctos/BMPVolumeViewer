@@ -205,7 +205,7 @@ int main(int argc, char *argv[])
 	// 设置渲染窗口 - 使用GetRenderWindow()
 	vtkWidget->GetRenderWindow()->AddRenderer(renderer);
 
-	// 设置交互样式（支持旋转、缩放等操作）
+	// 设置交互样式(TrackballCamera)（支持旋转、缩放等操作）
 	vtkSmartPointer<vtkRenderWindowInteractor> interactor =
 		vtkSmartPointer<vtkRenderWindowInteractor>::New();
 	interactor->SetRenderWindow(vtkWidget->GetRenderWindow());

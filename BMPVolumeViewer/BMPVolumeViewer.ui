@@ -6,12 +6,12 @@
       <rect>
         <x>0</x>
         <y>0</y>
-        <width>1000</width>
-        <height>800</height>
+        <width>1200</width>
+        <height>1200</height>
       </rect>
     </property>
     <property name="windowTitle">
-      <string>VTK BMP序列三维体渲染</string>
+      <string>VTK BMP序列三维体渲染与切片查看</string>
     </property>
     <widget class="QWidget" name="centralWidget">
       <layout class="QVBoxLayout" name="verticalLayout">
@@ -63,7 +63,141 @@
           </widget>
         </item>
         <item>
-          <widget class="QVTKOpenGLNativeWidget" name="vtkWidget"/>
+          <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="6,4">
+            <item>
+              <widget class="QGroupBox" name="volumeGroupBox">
+                <property name="title">
+                  <string>三维体渲染</string>
+                </property>
+                <layout class="QVBoxLayout" name="verticalLayout_2">
+                  <item>
+                    <widget class="QVTKOpenGLNativeWidget" name="volumeWidget">
+                      <property name="sizePolicy">
+                        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                          <horstretch>0</horstretch>
+                          <verstretch>0</verstretch>
+                        </sizepolicy>
+                      </property>
+                      <property name="minimumSize">
+                        <size>
+                          <width>600</width>
+                          <height>600</height>
+                        </size>
+                      </property>
+                    </widget>
+                  </item>
+                </layout>
+              </widget>
+            </item>
+            <item>
+              <layout class="QVBoxLayout" name="verticalLayout_3" stretch="1,1">
+                <item>
+                  <widget class="QGroupBox" name="xSliceGroupBox">
+                    <property name="title">
+                      <string>X方向切片 (平行于Z轴)</string>
+                    </property>
+                    <layout class="QVBoxLayout" name="verticalLayout_4">
+                      <item>
+                        <widget class="QVTKOpenGLNativeWidget" name="xSliceWidget">
+                          <property name="minimumSize">
+                            <size>
+                              <width>300</width>
+                              <height>300</height>
+                            </size>
+                          </property>
+                          <property name="sizePolicy">
+                            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                              <horstretch>0</horstretch>
+                              <verstretch>0</verstretch>
+                            </sizepolicy>
+                          </property>
+                        </widget>
+                      </item>
+                      <item>
+                        <layout class="QHBoxLayout" name="horizontalLayout_3">
+                          <item>
+                            <widget class="QLabel" name="xSliceLabel">
+                              <property name="text">
+                                <string>X切片位置: 0</string>
+                              </property>
+                            </widget>
+                          </item>
+                          <item>
+                            <widget class="QSlider" name="xSliceSlider">
+                              <property name="orientation">
+                                <enum>Qt::Horizontal</enum>
+                              </property>
+                              <property name="minimum">
+                                <number>0</number>
+                              </property>
+                              <property name="maximum">
+                                <number>100</number>
+                              </property>
+                              <property name="value">
+                                <number>50</number>
+                              </property>
+                            </widget>
+                          </item>
+                        </layout>
+                      </item>
+                    </layout>
+                  </widget>
+                </item>
+                <item>
+                  <widget class="QGroupBox" name="ySliceGroupBox">
+                    <property name="title">
+                      <string>Y方向切片 (平行于Z轴)</string>
+                    </property>
+                    <layout class="QVBoxLayout" name="verticalLayout_5">
+                      <item>
+                        <widget class="QVTKOpenGLNativeWidget" name="ySliceWidget">
+                          <property name="minimumSize">
+                            <size>
+                              <width>300</width>
+                              <height>300</height>
+                            </size>
+                          </property>
+                          <property name="sizePolicy">
+                            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                              <horstretch>0</horstretch>
+                              <verstretch>0</verstretch>
+                            </sizepolicy>
+                          </property>
+                        </widget>
+                      </item>
+                      <item>
+                        <layout class="QHBoxLayout" name="horizontalLayout_4">
+                          <item>
+                            <widget class="QLabel" name="ySliceLabel">
+                              <property name="text">
+                                <string>Y切片位置: 0</string>
+                              </property>
+                            </widget>
+                          </item>
+                          <item>
+                            <widget class="QSlider" name="ySliceSlider">
+                              <property name="orientation">
+                                <enum>Qt::Horizontal</enum>
+                              </property>
+                              <property name="minimum">
+                                <number>0</number>
+                              </property>
+                              <property name="maximum">
+                                <number>100</number>
+                              </property>
+                              <property name="value">
+                                <number>50</number>
+                              </property>
+                            </widget>
+                          </item>
+                        </layout>
+                      </item>
+                    </layout>
+                  </widget>
+                </item>
+              </layout>
+            </item>
+          </layout>
         </item>
         <item>
           <widget class="QGroupBox" name="controlGroupBox">

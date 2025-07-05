@@ -8,17 +8,21 @@
 #include <QFileInfo>
 #include <QProgressDialog>
 
+// 包含必要的VTK头文件
+#include <vtkImagePlaneWidget.h>
+#include <vtkLookupTable.h>
+#include <vtkImageMapToColors.h>
+#include <vtkProperty.h>
 #include <vtkRenderer.h>
 #include <vtkRenderWindow.h>
 #include <vtkRenderWindowInteractor.h>
 #include <vtkInteractorStyleTrackballCamera.h>
 #include <vtkAutoInit.h> // 添加VTK模块初始化宏
 
-// 明确初始化所需的VTK模块
 VTK_MODULE_INIT(vtkRenderingOpenGL2);
 VTK_MODULE_INIT(vtkInteractionStyle);
 VTK_MODULE_INIT(vtkRenderingVolumeOpenGL2);
-VTK_MODULE_INIT(vtkRenderingFreeType); // 可选，解决字体渲染问题
+VTK_MODULE_INIT(vtkRenderingFreeType);
 
 BMPVolumeViewer::BMPVolumeViewer(QWidget *parent)
 	: QMainWindow(parent)
@@ -26,22 +30,46 @@ BMPVolumeViewer::BMPVolumeViewer(QWidget *parent)
 {
 	ui->setupUi(this);
 
+	// 设置窗口最小尺寸以确保布局正确
+	this->setMinimumSize(1200, 800);
+
+	// 设置布局比例
+	// 左侧三维窗口占6份，右侧切片窗口占4份
+	ui->horizontalLayout_2->setStretch(0, 6);
+	ui->horizontalLayout_2->setStretch(1, 4);
+
+	// 切片视图垂直布局中两个切片各占1份
+	ui->verticalLayout_3->setStretch(0, 1);
+	ui->verticalLayout_3->setStretch(1, 1);
+
+	// 初始化数据
+	std::fill(std::begin(dataDimensions), std::end(dataDimensions), 0);
+	std::fill(std::begin(dataSpacing), std::end(dataSpacing), 1.0);
+
 	// 确保VTK部件已正确创建
-	if (!ui->vtkWidget) {
-		QMessageBox::critical(this, "初始化错误", "VTK部件初始化失败!");
+	if (!ui->volumeWidget || !ui->xSliceWidget || !ui->ySliceWidget) {
+		QMessageBox::critical(this, QStringLiteral("初始化错误"), QStringLiteral("VTK部件初始化失败!"));
 		return;
 	}
 
 	// 获取渲染窗口
-	vtkRenderWindow* renderWindow = ui->vtkWidget->GetRenderWindow();
-	if (!renderWindow) {
-		QMessageBox::critical(this, "初始化错误", "无法获取VTK渲染窗口!");
+	vtkRenderWindow* volumeWindow = ui->volumeWidget->GetRenderWindow();
+	vtkRenderWindow* xSliceWindow = ui->xSliceWidget->GetRenderWindow();
+	vtkRenderWindow* ySliceWindow = ui->ySliceWidget->GetRenderWindow();
+
+	if (!volumeWindow || !xSliceWindow || !ySliceWindow) {
+		QMessageBox::critical(this, QStringLiteral("初始化错误"), QStringLiteral("无法获取VTK渲染窗口!"));
 		return;
 	}
 
 	// 创建渲染器
-	renderer = vtkSmartPointer<vtkRenderer>::New();
-	renderWindow->AddRenderer(renderer);
+	volumeRenderer = vtkSmartPointer<vtkRenderer>::New();
+	xSliceRenderer = vtkSmartPointer<vtkRenderer>::New();
+	ySliceRenderer = vtkSmartPointer<vtkRenderer>::New();
+
+	volumeWindow->AddRenderer(volumeRenderer);
+	xSliceWindow->AddRenderer(xSliceRenderer);
+	ySliceWindow->AddRenderer(ySliceRenderer);
 
 	// 初始化颜色和不透明度传输函数
 	colorTransferFunction = vtkSmartPointer<vtkColorTransferFunction>::New();
@@ -50,34 +78,94 @@ BMPVolumeViewer::BMPVolumeViewer(QWidget *parent)
 	// 连接控制信号
 	connect(ui->opacitySlider, &QSlider::valueChanged, this, &BMPVolumeViewer::on_opacitySlider_valueChanged);
 	connect(ui->colorSlider, &QSlider::valueChanged, this, &BMPVolumeViewer::on_colorSlider_valueChanged);
+	connect(ui->xSliceSlider, &QSlider::valueChanged, this, &BMPVolumeViewer::on_xSliceSlider_valueChanged);
+	connect(ui->ySliceSlider, &QSlider::valueChanged, this, &BMPVolumeViewer::on_ySliceSlider_valueChanged);
 
 	// 初始化默认值
 	ui->filePatternEdit->setText("%s%d.00um.bmp");
 
+	// 设置初始滑块值
+	ui->xSliceSlider->setValue(50);
+	ui->ySliceSlider->setValue(50);
+
 	// 强制初始渲染以建立OpenGL上下文
-	renderWindow->Render();
+	volumeWindow->Render();
+	xSliceWindow->Render();
+	ySliceWindow->Render();
 }
 
 BMPVolumeViewer::~BMPVolumeViewer()
 {
-	// 清理资源
-	if (ui->vtkWidget && ui->vtkWidget->GetRenderWindow()) {
-		ui->vtkWidget->GetRenderWindow()->Finalize();
+	if (ui->volumeWidget && ui->volumeWidget->GetRenderWindow()) {
+		ui->volumeWidget->GetRenderWindow()->Finalize();
+	}
+	if (ui->xSliceWidget && ui->xSliceWidget->GetRenderWindow()) {
+		ui->xSliceWidget->GetRenderWindow()->Finalize();
+	}
+	if (ui->ySliceWidget && ui->ySliceWidget->GetRenderWindow()) {
+		ui->ySliceWidget->GetRenderWindow()->Finalize();
 	}
 	delete ui;
+}
+
+// 设置坐标轴控件
+void BMPVolumeViewer::setupAxesWidget()
+{
+	if (!ui->volumeWidget || !ui->volumeWidget->GetRenderWindow()) return;
+
+	// 创建坐标轴
+	vtkSmartPointer<vtkAxesActor> axes = vtkSmartPointer<vtkAxesActor>::New();
+	axes->SetTotalLength(100, 100, 100); // 设置坐标轴长度
+
+	// 创建方向标记部件
+	axesWidget = vtkSmartPointer<vtkOrientationMarkerWidget>::New();
+	axesWidget->SetOutlineColor(0.9300, 0.5700, 0.1300);
+	axesWidget->SetOrientationMarker(axes);
+	axesWidget->SetInteractor(ui->volumeWidget->GetRenderWindow()->GetInteractor());
+	axesWidget->SetViewport(0.0, 0.0, 0.2, 0.2); // 设置在窗口中的位置和大小
+	axesWidget->SetEnabled(1);
+	axesWidget->InteractiveOn();
+}
+
+// 创建从颜色传输函数生成的查找表
+vtkSmartPointer<vtkLookupTable> BMPVolumeViewer::createLookupTableFromColorTF()
+{
+	vtkSmartPointer<vtkLookupTable> lut = vtkSmartPointer<vtkLookupTable>::New();
+	lut->SetNumberOfTableValues(256);
+	lut->Build();
+
+	for (int i = 0; i < 256; i++) {
+		double rgb[3];
+		colorTransferFunction->GetColor(static_cast<double>(i), rgb);
+		lut->SetTableValue(i, rgb[0], rgb[1], rgb[2], 1.0);
+	}
+
+	return lut;
+}
+
+// 更新切片平面的查找表
+void BMPVolumeViewer::updateSliceLookupTables()
+{
+	vtkSmartPointer<vtkLookupTable> lut = createLookupTableFromColorTF();
+
+	if (xSlicePlane) {
+		xSlicePlane->SetLookupTable(lut);
+	}
+	if (ySlicePlane) {
+		ySlicePlane->SetLookupTable(lut);
+	}
 }
 
 void BMPVolumeViewer::on_browseButton_clicked()
 {
 	QString directory = QFileDialog::getExistingDirectory(
 		this,
-		tr("选择BMP序列目录"),
+		tr("select directory"),
 		QDir::homePath(),
 		QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks
 	);
 
 	if (!directory.isEmpty()) {
-		// 确保目录路径以分隔符结尾
 		QDir dir(directory);
 		ui->filePrefixEdit->setText(dir.filePath("depth_"));
 	}
@@ -89,15 +177,15 @@ void BMPVolumeViewer::on_loadButton_clicked()
 	QString filePattern = ui->filePatternEdit->text();
 
 	if (filePrefix.isEmpty()) {
-		QMessageBox::warning(this, "输入错误", "文件前缀不能为空!");
+		QMessageBox::warning(this, QStringLiteral("输入错误"), QStringLiteral("文件前缀不能为空!"));
 		return;
 	}
 
 	// 检查文件是否存在
 	QFileInfo testFile((filePrefix + "0.00um.bmp").arg(0));
 	if (!testFile.exists()) {
-		QMessageBox::warning(this, "error",
-			QString("could not find the files: %1\nplease check the filePrefix and filePattern.")
+		QMessageBox::warning(this, QStringLiteral("文件错误"),
+			QStringLiteral("找不到测试文件: %1\n请检查文件前缀和格式是否正确。")
 			.arg(testFile.filePath()));
 		return;
 	}
@@ -112,49 +200,65 @@ void BMPVolumeViewer::on_loadButton_clicked()
 	bmpReader->SetAllow8BitBMP(true);
 
 	try {
-		// 显示进度对话框
-		QProgressDialog progress("loading BMP sequence...", "quit", 0, 0, this);
+		QProgressDialog progress(QStringLiteral("加载BMP序列..."), QStringLiteral("取消"), 0, 0, this);
 		progress.setWindowModality(Qt::WindowModal);
 		progress.show();
 		QApplication::processEvents();
 
-		// 更新读取器
 		bmpReader->Update();
 		progress.close();
 
-		// 检查数据是否成功读取
 		vtkImageData* imageData = bmpReader->GetOutput();
 		if (!imageData || imageData->GetPointData()->GetScalars() == nullptr) {
-			QMessageBox::critical(this, "数据错误",
-				"未读取到图像数据!\n请检查文件路径和格式。");
+			QMessageBox::critical(this, QStringLiteral("数据错误"),
+				QStringLiteral("未读取到图像数据!\n请检查文件路径和格式。"));
 			return;
 		}
 
-		// 获取实际数据范围
-		int* dims = imageData->GetDimensions();
-		qDebug() << "size of image: " << dims[0] << "x" << dims[1] << "x" << dims[2];
+		// 获取数据信息
+		imageData->GetDimensions(dataDimensions);
+		imageData->GetSpacing(dataSpacing);
+
+		qDebug() << QStringLiteral("加载的图像尺寸: ")
+			<< dataDimensions[0] << "x"
+			<< dataDimensions[1] << "x"
+			<< dataDimensions[2];
+		qDebug() << QStringLiteral("数据间距: ")
+			<< dataSpacing[0] << ", "
+			<< dataSpacing[1] << ", "
+			<< dataSpacing[2];
+
+		// 设置滑块范围
+		ui->xSliceSlider->setRange(0, dataDimensions[0] - 1);
+		ui->ySliceSlider->setRange(0, dataDimensions[1] - 1);
+		ui->xSliceSlider->setValue(dataDimensions[0] / 2);
+		ui->ySliceSlider->setValue(dataDimensions[1] / 2);
 
 		setupVTKPipeline();
+		setupSliceViews(); // 设置切片视图
 
+		// 更新标签
+		ui->xSliceLabel->setText(QStringLiteral("X切片位置: %1").arg(dataDimensions[0] / 2));
+		ui->ySliceLabel->setText(QStringLiteral("Y切片位置: %1").arg(dataDimensions[1] / 2));
 	}
 	catch (std::exception& e) {
-		QMessageBox::critical(this, "加载错误",
-			QString("加载BMP序列时发生错误:\n%1").arg(e.what()));
+		QMessageBox::critical(this, QStringLiteral("加载错误"),
+			QStringLiteral("加载BMP序列时发生错误:\n%1").arg(e.what()));
 	}
 	catch (...) {
-		QMessageBox::critical(this, "加载错误", "加载BMP序列时发生未知错误!");
+		QMessageBox::critical(this, QStringLiteral("加载错误"), QStringLiteral("加载BMP序列时发生未知错误!"));
 	}
 }
 
 void BMPVolumeViewer::setupVTKPipeline()
 {
-	if (!renderer) {
-		QMessageBox::critical(this, "渲染错误", "渲染器未初始化!");
+	if (!volumeRenderer) {
+		QMessageBox::critical(this, QStringLiteral("加载BMP序列时发生未知错误!"), QStringLiteral("渲染器未初始化!"));
 		return;
 	}
 
 	// 清理之前的渲染
-	renderer->RemoveAllViewProps();
+	volumeRenderer->RemoveAllViewProps();
 
 	// 创建降采样过滤器
 	resample = vtkSmartPointer<vtkImageResample>::New();
@@ -180,6 +284,9 @@ void BMPVolumeViewer::setupVTKPipeline()
 	// 创建体映射器
 	volumeMapper = vtkSmartPointer<vtkFixedPointVolumeRayCastMapper>::New();
 	volumeMapper->SetInputConnection(resample->GetOutputPort());
+	volumeMapper->SetCropping(false);
+	volumeMapper->SetSampleDistance(0.5);
+	volumeMapper->SetImageSampleDistance(1.0);
 
 	// 创建体
 	volume = vtkSmartPointer<vtkVolume>::New();
@@ -187,23 +294,23 @@ void BMPVolumeViewer::setupVTKPipeline()
 	volume->SetProperty(volumeProperty);
 
 	// 添加到渲染器
-	renderer->AddVolume(volume);
-	renderer->SetBackground(0.2, 0.3, 0.4);
-	renderer->ResetCamera();
+	volumeRenderer->AddVolume(volume);
+	volumeRenderer->SetBackground(0.2, 0.3, 0.4);
+	volumeRenderer->ResetCamera();
 
 	// 获取并初始化交互器
-	vtkRenderWindow* renderWindow = ui->vtkWidget->GetRenderWindow();
-	if (!renderWindow) {
-		QMessageBox::critical(this, "渲染错误", "无法获取渲染窗口!");
+	vtkRenderWindow* volumeWindow = ui->volumeWidget->GetRenderWindow();
+	if (!volumeWindow) {
+		QMessageBox::critical(this, QStringLiteral("渲染错误"), QStringLiteral("无法获取渲染窗口!"));
 		return;
 	}
 
-	vtkRenderWindowInteractor* interactor = renderWindow->GetInteractor();
+	vtkRenderWindowInteractor* interactor = volumeWindow->GetInteractor();
 	if (!interactor) {
 		interactor = vtkRenderWindowInteractor::New();
-		interactor->SetRenderWindow(renderWindow);
-		renderWindow->SetInteractor(interactor);
-		interactor->Delete(); // VTK会管理这个指针
+		interactor->SetRenderWindow(volumeWindow);
+		volumeWindow->SetInteractor(interactor);
+		interactor->Delete();
 	}
 
 	// 设置交互样式
@@ -216,8 +323,80 @@ void BMPVolumeViewer::setupVTKPipeline()
 		interactor->Initialize();
 	}
 
+	// 设置坐标轴控件
+	setupAxesWidget();
+
 	// 更新渲染
-	renderWindow->Render();
+	volumeWindow->Render();
+}
+
+// 设置切片视图
+void BMPVolumeViewer::setupSliceViews()
+{
+	vtkImageData* imageData = bmpReader->GetOutput();
+	if (!imageData) return;
+
+	// 设置X切片视图
+	vtkRenderWindow* xSliceWindow = ui->xSliceWidget->GetRenderWindow();
+	if (!xSliceWindow) return;
+
+	// 创建X切片平面控件
+	xSlicePlane = vtkSmartPointer<vtkImagePlaneWidget>::New();
+	xSlicePlane->SetInteractor(xSliceWindow->GetInteractor());
+	xSlicePlane->SetInputData(imageData);
+	xSlicePlane->SetPlaneOrientationToXAxes(); // 平行于X轴
+	xSlicePlane->SetSliceIndex(dataDimensions[0] / 2); // 初始位置在中间
+	xSlicePlane->DisplayTextOn();
+	xSlicePlane->SetRightButtonAction(0); // 禁用右键操作
+	xSlicePlane->SetMiddleButtonAction(0); // 禁用中键操作
+	xSlicePlane->TextureInterpolateOff();
+	xSlicePlane->SetResliceInterpolateToNearestNeighbour(); // 最近邻插值
+	xSlicePlane->RestrictPlaneToVolumeOn();
+
+	// 设置颜色查找表
+	updateSliceLookupTables();
+
+	// 设置平面属性
+	xSlicePlane->GetPlaneProperty()->SetColor(1, 0, 0); // 红色边框
+
+	xSlicePlane->On();
+
+	// 设置X切片渲染器背景
+	xSliceRenderer->SetBackground(0.1, 0.1, 0.1);
+	xSliceRenderer->ResetCamera();
+
+	// 设置Y切片视图
+	vtkRenderWindow* ySliceWindow = ui->ySliceWidget->GetRenderWindow();
+	if (!ySliceWindow) return;
+
+	// 创建Y切片平面控件
+	ySlicePlane = vtkSmartPointer<vtkImagePlaneWidget>::New();
+	ySlicePlane->SetInteractor(ySliceWindow->GetInteractor());
+	ySlicePlane->SetInputData(imageData);
+	ySlicePlane->SetPlaneOrientationToYAxes(); // 平行于Y轴
+	ySlicePlane->SetSliceIndex(dataDimensions[1] / 2); // 初始位置在中间
+	ySlicePlane->DisplayTextOn();
+	ySlicePlane->SetRightButtonAction(0); // 禁用右键操作
+	ySlicePlane->SetMiddleButtonAction(0); // 禁用中键操作
+	ySlicePlane->TextureInterpolateOff();
+	ySlicePlane->SetResliceInterpolateToNearestNeighbour(); // 最近邻插值
+	ySlicePlane->RestrictPlaneToVolumeOn();
+
+	// 设置颜色查找表
+	updateSliceLookupTables();
+
+	// 设置平面属性
+	ySlicePlane->GetPlaneProperty()->SetColor(0, 1, 0); // 绿色边框
+
+	ySlicePlane->On();
+
+	// 设置Y切片渲染器背景
+	ySliceRenderer->SetBackground(0.1, 0.1, 0.1);
+	ySliceRenderer->ResetCamera();
+
+	// 更新渲染
+	xSliceWindow->Render();
+	ySliceWindow->Render();
 }
 
 void BMPVolumeViewer::updateColorTransferFunction(double hue)
@@ -230,6 +409,20 @@ void BMPVolumeViewer::updateColorTransferFunction(double hue)
 	colorTransferFunction->AddRGBPoint(128, 1.0, 1.0, hue);
 	colorTransferFunction->AddRGBPoint(192, hue, 1.0, 0.0);
 	colorTransferFunction->AddRGBPoint(255, 0.0, hue, 1.0);
+
+	// 更新切片视图的颜色查找表
+	updateSliceLookupTables();
+
+	// 请求渲染更新
+	if (ui->volumeWidget && ui->volumeWidget->GetRenderWindow()) {
+		ui->volumeWidget->GetRenderWindow()->Render();
+	}
+	if (ui->xSliceWidget && ui->xSliceWidget->GetRenderWindow()) {
+		ui->xSliceWidget->GetRenderWindow()->Render();
+	}
+	if (ui->ySliceWidget && ui->ySliceWidget->GetRenderWindow()) {
+		ui->ySliceWidget->GetRenderWindow()->Render();
+	}
 }
 
 void BMPVolumeViewer::updateOpacityTransferFunction(double maxOpacity)
@@ -252,8 +445,8 @@ void BMPVolumeViewer::on_opacitySlider_valueChanged(int value)
 	updateOpacityTransferFunction(value / 100.0);
 	volumeProperty->SetScalarOpacity(opacityTransferFunction);
 
-	if (ui->vtkWidget && ui->vtkWidget->GetRenderWindow()) {
-		ui->vtkWidget->GetRenderWindow()->Render();
+	if (ui->volumeWidget && ui->volumeWidget->GetRenderWindow()) {
+		ui->volumeWidget->GetRenderWindow()->Render();
 	}
 }
 
@@ -262,17 +455,32 @@ void BMPVolumeViewer::on_colorSlider_valueChanged(int value)
 	if (!volumeProperty || !colorTransferFunction) return;
 
 	updateColorTransferFunction(value / 100.0);
-	volumeProperty->SetColor(colorTransferFunction);
-
-	if (ui->vtkWidget && ui->vtkWidget->GetRenderWindow()) {
-		ui->vtkWidget->GetRenderWindow()->Render();
-	}
 }
 
 void BMPVolumeViewer::on_resetViewButton_clicked()
 {
-	if (renderer && ui->vtkWidget && ui->vtkWidget->GetRenderWindow()) {
-		renderer->ResetCamera();
-		ui->vtkWidget->GetRenderWindow()->Render();
+	if (volumeRenderer && ui->volumeWidget && ui->volumeWidget->GetRenderWindow()) {
+		volumeRenderer->ResetCamera();
+		ui->volumeWidget->GetRenderWindow()->Render();
+	}
+}
+
+// X方向切片滑块变化
+void BMPVolumeViewer::on_xSliceSlider_valueChanged(int value)
+{
+	if (xSlicePlane && dataDimensions[0] > 0) {
+		xSlicePlane->SetSliceIndex(value);
+		ui->xSliceLabel->setText(QStringLiteral("X切片位置: %1").arg(value));
+		ui->xSliceWidget->GetRenderWindow()->Render();
+	}
+}
+
+// Y方向切片滑块变化
+void BMPVolumeViewer::on_ySliceSlider_valueChanged(int value)
+{
+	if (ySlicePlane && dataDimensions[1] > 0) {
+		ySlicePlane->SetSliceIndex(value);
+		ui->ySliceLabel->setText(QStringLiteral("Y切片位置: %1").arg(value));
+		ui->ySliceWidget->GetRenderWindow()->Render();
 	}
 }
